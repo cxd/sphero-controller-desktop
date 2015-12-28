@@ -7,7 +7,7 @@ of the sphero robot.
 
 The API it uses for communication is the bluecove API and a modified version of the 
 [__nicklasgav Sphero-Desktop-API__](https://github.com/nicklasgav/Sphero-Desktop-API) 
-which includes some additional changes for the sensor streaming api.
+which includes some additional changes for the sensor streaming api, the changes are located here in the [fork of Sphero-Desktop-API](https://github.com/cxd/Sphero-Desktop-API.git).
 
 
 A simple _RandomController_ is implemented to provide a simple random walk implementation.
