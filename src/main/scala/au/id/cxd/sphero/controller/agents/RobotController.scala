@@ -120,7 +120,7 @@ abstract class RobotController(parent: ActorRef)
         lastState = State.copy(state)
 
         val polar = toPolar(sensorData.getOdometer.getA, sensorData.getOdometer.getB)
-
+        val degree = toDegree(polar._2).toInt
 
         state = State(sensorData.getOdometer.getA,
           sensorData.getOdometer.getB,
@@ -129,7 +129,7 @@ abstract class RobotController(parent: ActorRef)
           sensorData.getAccelerometerRaw.getC,
           sensorData.getVelocity.getA,
           sensorData.getVelocity.getB,
-          polar._2.toInt)
+          degree)
 
 
         val aX = state.accelX

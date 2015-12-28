@@ -4,6 +4,8 @@ version := "1.0"
 
 scalaVersion := "2.11.7"
 
+scalacOptions += "-target:jvm-1.8"
+
 libraryDependencies ++= Seq(
   // other dependencies here
   "org.scalanlp" %% "breeze" % "0.11.2",
@@ -19,6 +21,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.3.10",
 
   "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
+
+  "com.typesafe" % "config" % "1.3.0",
 
   "org.slf4j" % "slf4j-log4j12" % "1.7.13",
 

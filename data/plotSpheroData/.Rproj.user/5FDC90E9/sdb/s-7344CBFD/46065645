@@ -1,12 +1,12 @@
 {
-    "contents" : "require(\"ggplot2\")\nsource(\"multiplot.R\")\nsource(\"sphere.R\")\ndata <- read.csv(\"csv/test1.csv\", header=TRUE, sep=\",\")\n\np1 <- ggplot(data) + \n  geom_point(aes(x=x, y=y))\n\np2 <- ggplot(data) + \n  geom_point(aes(x=x, y=y), col=\"red\")\n\nmultiplot(p1, p2, cols=2)\n\npolar <- polarXY(data$x, data$y)\n\np3 <- ggplot(polar) +\n  geom_line(aes(x=radius, y=theta, col=theta)) +\n  geom_point(aes(x=radius, y=theta), col=\"red\", alpha=0.1) +\n  coord_polar(theta=\"y\")\n\n\nmultiplot(p1, p2, p3, cols=2)\n",
+    "contents" : "require(\"ggplot2\")\nsource(\"multiplot.R\")\nsource(\"sphere.R\")\ndata <- read.csv(\"csv/test1.csv\", header=TRUE, sep=\",\")\n\np1 <- ggplot(data) + \n  geom_point(aes(x=x, y=y))\n\np2 <- ggplot(data) + \n  geom_point(aes(x=x, y=y), col=\"red\")\n\nmultiplot(p1, p2, cols=2)\n\npolar <- polarXY(data$x, data$y)\n\np3 <- ggplot(polar) +\n  geom_line(aes(x=radius, y=theta, col=theta)) +\n  geom_point(aes(x=radius, y=theta), col=\"red\", alpha=0.1) +\n  coord_polar(theta=\"y\")\n\n\nmultiplot(p1, p2, p3, cols=2)\n\n",
     "created" : 1450577942422.000,
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "1582661199",
+    "hash" : "3572109292",
     "id" : "46065645",
-    "lastKnownWriteTime" : 1451287782,
+    "lastKnownWriteTime" : 1451290793,
     "path" : "~/Projects/sphero/sarsa-sphero-desktop/data/plotSpheroData/plotTestData.R",
     "project_path" : "plotTestData.R",
     "properties" : {

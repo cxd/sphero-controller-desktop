@@ -1,5 +1,6 @@
 package au.id.cxd.sphero.controller.agents
 
+import au.id.cxd.sphero.controller.RobotConfig
 import au.id.cxd.sphero.controller.state.model.State
 import org.slf4j.LoggerFactory
 import se.nicklasgavelin.sphero.Robot
@@ -25,17 +26,17 @@ trait RobotControl {
   /**
     * base constant speed
     */
-  val constSpeed = 0.2f
+  val constSpeed = RobotConfig.doubleFor("robot.constSpeed", 0.2f).toFloat
 
   /**
     * X threshold for collision detection
     */
-  val collisionXThreshold = 80
+  val collisionXThreshold = RobotConfig.intFor("robot.collisionXThreshold", 80)
 
   /**
     * Y threshold for collision detection
     */
-  val collisionYThreshold = 80
+  val collisionYThreshold = RobotConfig.intFor("robot.collisionYThreshold", 80)
 
   /**
     * collection of robots registered via bluetooth
@@ -195,7 +196,16 @@ trait RobotControl {
     * @param radian
     * @return
     */
-  def toDegree(radian: Double) = (radian * (180.0 / Math.PI)) % 360
+  def toDegree(radian: Double):Double = {
+    val tmp = (radian * (180.0 / Math.PI)) % 360
+    tmp < 0 match {
+      case false => tmp
+      case true => {
+        val tmp1 = Math.abs(tmp)
+        360.0 - tmp1
+      }
+    }
+  }
 
   /**
     * convert to radians

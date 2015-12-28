@@ -20,3 +20,4 @@ p3 <- ggplot(polar) +
 
 
 multiplot(p1, p2, p3, cols=2)
+

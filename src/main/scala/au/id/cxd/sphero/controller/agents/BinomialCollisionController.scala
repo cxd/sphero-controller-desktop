@@ -2,6 +2,7 @@ package au.id.cxd.sphero.controller.agents
 
 import akka.actor.{Props, ActorSystem, ActorRef}
 import au.id.cxd.math.probability.discrete.Binomial
+import au.id.cxd.sphero.controller.RobotConfig
 import au.id.cxd.sphero.controller.protocol.Update
 import au.id.cxd.sphero.controller.state.model.State
 import breeze.linalg.DenseVector
@@ -18,7 +19,7 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
   /**
     * we expect a threshold of 3 cm
     */
-  val minDistanceThreshold = 1.0
+  val minDistanceThreshold = RobotConfig.doubleFor("robot.minDistanceThreshold", 1.0)
 
   /**
     * a vector of collision likelihood
@@ -91,12 +92,24 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
     println(s"Distance: $distance2d cm")
 
     // check the threshold
-    val finalHeading = distance2d < minDistanceThreshold match {
-      case true => randomHeading(robot, state, lastState, wasCollision)
+    val heading2 = distance2d < minDistanceThreshold match {
+      case true => {
+        updateCollision(state, collisionLikelihood)
+        randomHeading(robot, state, lastState, wasCollision)
+      }
       case false => heading
-
     }
 
+    val finalHeading = heading2 < 0 match {
+      case true => {
+        val tmp = Math.abs(heading2)
+        360 - tmp
+      }
+      case false => heading2
+    }
+
+
+    println(s"Final Heading: $finalHeading")
     val command = new RollCommand(finalHeading.toFloat, constSpeed, false)
     robot.sendCommand(command)
   }
@@ -114,7 +127,16 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
     */
   def updateCollision(state: State, likelihood: DenseVector[Double]) = {
     val polar = toPolar(state)
-    val degree = toDegree(polar._2).toInt
+    val tmp = toDegree(polar._2).toInt
+
+    val degree = tmp < 0 match {
+      case false => tmp
+      case true => {
+        val tmp1 = Math.abs(tmp)
+        360 - tmp1
+      }
+    }
+
     val n = currentN.apply(degree)
     val y = currentY.apply(degree)
     if (n < slidingWindow) {
@@ -157,7 +179,7 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
       idx < likelihood.length match {
         case true => least > likelihood(idx) match {
           case true => select(idx + 1, idx, likelihood(idx))(likelihood)
-          case false => (idx, matchIdx, least)
+          case false => select(idx+1, matchIdx, least)(likelihood)
         }
         case _ => (idx, matchIdx, least)
       }
