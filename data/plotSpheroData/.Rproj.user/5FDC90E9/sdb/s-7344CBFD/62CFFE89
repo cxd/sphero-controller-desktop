@@ -1,0 +1,18 @@
+{
+    "contents" : "require(\"ggplot2\")\nsource(\"multiplot.R\")\nsource(\"sphere.R\")\n\ndata <- read.csv(\"csv/collision1.csv\", header=TRUE, sep=\",\")\n\np1 <- ggplot(data) +\n  geom_point(aes(x=X, y=Y, col=Y))\n\npolar <- polarXY(data$X, data$Y)\n\np2 <- ggplot(polar) +\n  geom_line(aes(x=radius, y=theta, col=theta)) +\n  geom_point(aes(x=radius, y=theta), col=\"red\", alpha=0.5) +\n  coord_polar(theta=\"y\")\n\n\nmultiplot(p1, p2, cols=2)",
+    "created" : 1450780512482.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1495520151",
+    "id" : "62CFFE89",
+    "lastKnownWriteTime" : 1451287649,
+    "path" : "~/Projects/sphero/sarsa-sphero-desktop/data/plotSpheroData/plotCollision.R",
+    "project_path" : "plotCollision.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "type" : "r_source"
+}

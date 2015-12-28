@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="consoleAppender"
+              class="org.apache.log4j.ConsoleAppender">
+        <param name="Threshold" value="INFO" />
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d
+             %-5p  [%c{1}] %m %n" />
+        </layout>
+    </appender>
+
+    <appender name="accelLog"
+              class="org.apache.log4j.RollingFileAppender">
+        <param name="Threshold" value="INFO" />
+        <param name="File" value="log/accel.log"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%m%n" />
+        </layout>
+    </appender>
+    <appender name="locatorLog"
+              class="org.apache.log4j.RollingFileAppender">
+        <param name="Threshold" value="INFO" />
+        <param name="File" value="log/locator.log"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%m%n" />
+        </layout>
+    </appender>
+
+    <appender name="collisionLog"
+              class="org.apache.log4j.RollingFileAppender">
+        <param name="Threshold" value="INFO" />
+        <param name="File" value="log/collision.log"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%m%n" />
+        </layout>
+    </appender>
+
+
+    <logger name="accel" additivity="false" >
+        <level value="INFO" />
+        <appender-ref ref="accelLog"/>
+    </logger>
+
+
+    <logger name="locator" additivity="false" >
+        <level value="INFO" />
+        <appender-ref ref="locatorLog"/>
+    </logger>
+
+    <logger name="collision" additivity="false" >
+        <level value="INFO" />
+        <appender-ref ref="collisionLog"/>
+    </logger>
+
+
+</configuration>
