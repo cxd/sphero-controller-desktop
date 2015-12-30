@@ -38,6 +38,8 @@ class RandomController(parent: ActorRef) extends RobotController(parent) {
     }
     val command = new RollCommand(angle.toFloat, constSpeed, false)
     robot.sendCommand(command)
+    state.setHeading = angle.toInt
+    state.lastSetHeading = lastState.setHeading
   }
 }
 object RandomController {

@@ -35,6 +35,15 @@
         </layout>
     </appender>
 
+    <appender name="likelihoodLog"
+              class="org.apache.log4j.RollingFileAppender">
+        <param name="Threshold" value="INFO" />
+        <param name="File" value="log/likelihood.log"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%m%n" />
+        </layout>
+    </appender>
+
 
     <logger name="accel" additivity="false" >
         <level value="INFO" />
@@ -50,6 +59,12 @@
     <logger name="collision" additivity="false" >
         <level value="INFO" />
         <appender-ref ref="collisionLog"/>
+    </logger>
+
+
+    <logger name="likelihood" additivity="false" >
+        <level value="INFO" />
+        <appender-ref ref="likelihoodLog"/>
     </logger>
 
 

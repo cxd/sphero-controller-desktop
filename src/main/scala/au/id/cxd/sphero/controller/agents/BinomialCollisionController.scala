@@ -6,8 +6,9 @@ import au.id.cxd.sphero.controller.RobotConfig
 import au.id.cxd.sphero.controller.protocol.Update
 import au.id.cxd.sphero.controller.state.model.State
 import breeze.linalg.DenseVector
+import org.slf4j.LoggerFactory
 import se.nicklasgavelin.sphero.Robot
-import se.nicklasgavelin.sphero.command.RollCommand
+import se.nicklasgavelin.sphero.command.{SpinLeftCommand, RollCommand}
 
 import scala.util.Random
 
@@ -15,6 +16,9 @@ import scala.util.Random
   * Created by cd on 24/12/2015.
   */
 class BinomialCollisionController(parent: ActorRef) extends RobotController(parent) {
+
+  val likelihoodLog = LoggerFactory.getLogger("likelihood")
+
 
   /**
     * we expect a threshold of 3 cm
@@ -76,6 +80,22 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
 
   }
 
+  def debugLikelihood(): Unit = {
+    val debug = collisionLikelihood.toString()
+    println(debug)
+
+    val sb = collisionLikelihood.toArray.foldLeft(new StringBuilder()) {
+      (sb:StringBuilder, item:Double) => {
+        sb.append(s"$item,")
+        sb
+      }
+    }
+    val txt = sb.toString()
+
+    likelihoodLog.info(txt.substring(0, txt.length - 1))
+
+  }
+
 
   /**
     * change direction randomly
@@ -83,9 +103,14 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
     * @param state
     */
   def changeDirection(robot: Robot, state: State, wasCollision: Boolean): Unit = {
+
+    val degrees = state.setHeading
+
+    println(s"Degree: $degrees")
+
     val (heading, flag) = wasCollision match {
       case true => {
-        updateCollision(state.lastSetHeading, collisionLikelihood)
+        updateCollision(degrees, collisionLikelihood)
         (selectLeastLikelihood(collisionLikelihood)(0, 359), wasCollision)
       }
       case _ => {
@@ -95,43 +120,45 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
             // determine if we have moved much from the previous state
             // we expect a step that is at least a magnitude of velocity along the heading
             println(s"Distance: $distance2d cm")
-            updateCollision(state.lastSetHeading, collisionLikelihood)
+            updateCollision(degrees.toInt, collisionLikelihood)
 
             // use the current heading and select a minimum and maximum index 90 degrees
             // in the opposite direction of the current heading
-            val theta = toRadian(state.lastSetHeading)
+            val theta = toRadian(degrees)
             val (min, max) = {
-              val minDegree = toDegree(theta - 130 * (Math.PI / 180.0)).toInt
-              val maxDegree = toDegree(theta + 130 * (Math.PI / 180.0)).toInt
+              val minDegree = {
+                clamp( toDegree(Math.PI/4 + theta - toRadian(10)).toInt )
+              }
+              val maxDegree = {
+                clamp( toDegree(Math.PI/4 + theta + toRadian(10)).toInt )
+              }
               minDegree < maxDegree match {
                 case true => (minDegree, maxDegree)
-                case _ => (maxDegree, minDegree)
+                case _ => minDegree == 0 || minDegree == 360 match {
+                  case true => (maxDegree, 359)
+                  case false => (maxDegree, minDegree)
+                }
               }
             }
             (selectLeastLikelihood(collisionLikelihood)(min, max), true)
           }
-          case false => (state.lastSetHeading, false)
+          case false => (degrees, false)
         }
       }
     }
 
-    state.setHeading = heading < 0 match {
-      case true => {
-        val tmp = Math.abs(heading)
-        360 - tmp
-      }
-      case false => heading
-    }
+    state.setHeading = clamp(heading)
 
     val h = state.setHeading
-
-    println(s"Final Heading: $h")
+    val h2 = state.lastSetHeading
+    println(s"Final Heading: $h Last heading: $h2")
     flag match {
       case true => {
         // rotate to the heading before rolling
         // rotate first
         // execute the roll command 3 times.
         val command1 = new RollCommand(state.setHeading.toFloat, 1.0f, true)
+        //val command1 = new SpinLeftCommand((constSpeed * 255).toInt)
         robot.sendCommand(command1)
 
       }
@@ -210,22 +237,25 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
     * @return
     */
   def selectLeastLikelihood(likelihood: DenseVector[Double])(min: Int, max: Int) = {
-    def select(idx: Int, maxIdx: Int, matchIdx: Int, least: Double)(likelihood: DenseVector[Double]): (Int, Int, Double) = {
+    def select(idx: Int, maxIdx: Int, matchIdx: Int, least: Double)(likelihood: DenseVector[Double]): (Int, Double) = {
       idx < likelihood.length match {
         case true => {
           idx >= min && idx <= maxIdx match {
             case true => least > likelihood(idx) match {
-              case true => select(idx + 3, maxIdx, idx, likelihood(idx))(likelihood)
-              case false => select(idx + 3, maxIdx, matchIdx, least)(likelihood)
+              case true => select(idx + 1, maxIdx, idx, likelihood(idx))(likelihood)
+              case false => select(idx + 1, maxIdx, matchIdx, least)(likelihood)
             }
-            case _ => (idx, matchIdx, least)
+            case _ => (matchIdx, least)
           }
 
         }
-        case _ => (idx, matchIdx, least)
+        case _ => (matchIdx, least)
       }
     }
-    val (idx, matchIdx, least) = select(min, max, 0, Double.MaxValue)(likelihood)
+
+    debugLikelihood()
+    println(s"Min:$min Max: $max")
+    val (matchIdx, least) = select(min, max, min, Double.MaxValue)(likelihood)
     matchIdx
   }
 

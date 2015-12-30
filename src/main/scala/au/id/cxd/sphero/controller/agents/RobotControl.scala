@@ -133,15 +133,12 @@ trait RobotControl {
   def randomHeading(robot: Robot, state: State, lastState: State, wasCollision: Boolean): Float = {
     val x = state.x
     val y = state.y
-    val r = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2))
+    val x2 = lastState.x
+    val y2 = lastState.y
     // this is the last angle.
     // rotate this angle 45 degrees
-    val theta = r > 0 match {
-      case true => Math.atan(r / (1.0 * x))
-      case false => {
-        Random.nextDouble() * 2.0 * Math.PI
-      }
-    }
+    val theta = toRadian(state.setHeading)
+
     val delta = Math.min(Math.abs(lastState.x - x), Math.abs(lastState.y - y))
     val angle =
       if (wasCollision) {
@@ -271,5 +268,20 @@ trait RobotControl {
     val x = state.x
     val y = state.y
     toPolar(x, y)
+  }
+
+  /**
+    * clamp between 0 and 360 degrees
+    * @param heading
+    * @return
+    */
+  def clamp(heading:Int):Int = {
+    heading < 0 match {
+      case true => {
+        val tmp = Math.abs(heading)
+        360 - tmp
+      }
+      case false => heading
+    }
   }
 }

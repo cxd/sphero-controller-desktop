@@ -4,3 +4,5 @@ project/target/**
 log/**
 .Rproj.user/**
 .RData
+.Rproj.user
+data/log/**
