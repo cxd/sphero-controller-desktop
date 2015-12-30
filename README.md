@@ -19,3 +19,5 @@ to result in a collision.
 This is little more than the random controller with a small modification to assign a likelihood to collision
 detection.
 
+Further details are explained in the [__summary documentation__](docs/random_and_binom_notes.ipynb).
+

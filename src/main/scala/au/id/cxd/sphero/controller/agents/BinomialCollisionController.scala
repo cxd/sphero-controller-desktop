@@ -48,7 +48,7 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
   /**
     * likelihood of reaching a collision within the last 10 moves
     */
-  val slidingWindow = 10.0
+  val slidingWindow = RobotConfig.intFor("robot.betaBinomial.slidingWindow", 10)
 
   /**
     * current N in sliding window
@@ -145,88 +145,89 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
   }
 
 
+  /**
+    * update the collision likelihood for the given state.
+    * this is based only on the polar degree
+    *
+    * this is used to update the parameter vector for proportion
+    * and the alpha and beta parameters for the degree heading
+    *
+    * @param likelihood
+    */
+  def updateCollision(degree: Int, likelihood: DenseVector[Double]) = {
 
-/**
-  * update the collision likelihood for the given state.
-  * this is based only on the polar degree
-  *
-  * this is used to update the parameter vector for proportion
-  * and the alpha and beta parameters for the degree heading
-  *
-  * @param likelihood
-  */
-def updateCollision (degree: Int, likelihood: DenseVector[Double] ) = {
+    for (i <- 0 until likelihood.length) {
 
-for (i <- 0 until likelihood.length) {
+      val (n, y) = {
+        val n = currentN.apply(i)
+        val y = currentY.apply(i)
+        i == degree match {
+          case true => {
+            if (n < slidingWindow) {
+              currentN(degree) = n + 1
+              currentY(degree) = y + 1
+            } else {
+              currentN(degree) = 1
+              currentY(degree) = 1
+            }
+          }
+          case false => {
+            if (n < slidingWindow) {
+              currentN(i) = n + 1
+              //if (y > 0) {
+              //  currentY(i) = y - 1
+              //}
+            } else {
+              currentN(i) = 1
+              if (currentY(i) > 0) {
+                currentY(i) = 1
+              }
+            }
+          }
 
-val (n, y) = {
-val n = currentN.apply (i)
-val y = currentY.apply (i)
-i == degree match {
-case true => {
-if (n < slidingWindow) {
-currentN (degree) = n + 1
-currentY (degree) = y + 1
-} else {
-currentN (degree) = 1
-currentY (degree) = 1
-}
-}
-case false => {
-if (n < slidingWindow) {
-currentN (i) = n + 1
-if (y > 0) {
-currentY (i) = y - 1
-}
-} else {
-currentN (i) = 1
-currentY (i) = 0
-}
-}
+        }
 
-}
+        (currentN.apply(i), currentY.apply(i))
+      }
+      // update the beta distribution parameters
+      alphaParameters(i) = alphaParameters(i) + y
+      betaParameters(i) = betaParameters(i) + n - y
 
-(currentN.apply (i), currentY.apply (i) )
-}
-// update the beta distribution parameters
-alphaParameters (i) = alphaParameters (i) + y
-betaParameters (i) = betaParameters (i) + n - y
+      // compute most mean value for pi based on the beta parameters
+      val pi = alphaParameters(i) / (alphaParameters(i) + betaParameters(i))
+      proportion(i) = pi
+      // calculate the likelihood of f(y|pi) using the updated parameter pi
+      val binom = Binomial(slidingWindow.toDouble)(pi)
+      likelihood(i) = binom.pdf(1)
+    }
+    likelihood
+  }
 
-// compute most mean value for pi based on the beta parameters
-val pi = alphaParameters (i) / (alphaParameters (i) + betaParameters (i) )
-proportion (i) = pi
-// calculate the likelihood of f(y|pi) using the updated parameter pi
-val binom = Binomial (slidingWindow.toDouble) (pi)
-likelihood (i) = binom.pdf (1)
-}
-likelihood
-}
+  /**
+    * select the angle (based on index) of the least likelihood of collision
+    * step 3 degrees at each search
+    * @param likelihood
+    * @return
+    */
+  def selectLeastLikelihood(likelihood: DenseVector[Double])(min: Int, max: Int) = {
+    def select(idx: Int, maxIdx: Int, matchIdx: Int, least: Double)(likelihood: DenseVector[Double]): (Int, Int, Double) = {
+      idx < likelihood.length match {
+        case true => {
+          idx >= min && idx <= maxIdx match {
+            case true => least > likelihood(idx) match {
+              case true => select(idx + 3, maxIdx, idx, likelihood(idx))(likelihood)
+              case false => select(idx + 3, maxIdx, matchIdx, least)(likelihood)
+            }
+            case _ => (idx, matchIdx, least)
+          }
 
-/**
-  * select the angle (based on index) of the least likelihood of collision
-  * step 3 degrees at each search
-  * @param likelihood
-  * @return
-  */
-def selectLeastLikelihood (likelihood: DenseVector[Double] ) (min: Int, max: Int) = {
-def select (idx: Int, maxIdx: Int, matchIdx: Int, least: Double) (likelihood: DenseVector[Double] ): (Int, Int, Double) = {
-idx < likelihood.length match {
-case true => {
-idx >= min && idx <= maxIdx match {
-case true => least > likelihood (idx) match {
-case true => select (idx + 3, maxIdx, idx, likelihood (idx) ) (likelihood)
-case false => select (idx + 3, maxIdx, matchIdx, least) (likelihood)
-}
-case _ => (idx, matchIdx, least)
-}
-
-}
-case _ => (idx, matchIdx, least)
-}
-}
-val (idx, matchIdx, least) = select (min, max, 0, Double.MaxValue) (likelihood)
-matchIdx
-}
+        }
+        case _ => (idx, matchIdx, least)
+      }
+    }
+    val (idx, matchIdx, least) = select(min, max, 0, Double.MaxValue)(likelihood)
+    matchIdx
+  }
 
 }
 
