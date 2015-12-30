@@ -104,7 +104,6 @@ abstract class RobotController(parent: ActorRef)
   }
 
 
-
   def informationResponseReceived(robot: Robot, response: InformationResponseMessage): Unit = {
     val seqNum = response.getMessageHeader.getSequenceNumber
 
@@ -119,8 +118,12 @@ abstract class RobotController(parent: ActorRef)
         // update the current state
         lastState = State.copy(state)
 
-        val polar = toPolar(sensorData.getOdometer.getA, sensorData.getOdometer.getB)
-        val degree = toDegree(polar._2).toInt
+        // heading is relative to the last position instead of absolute to starting position
+        val radians = radiansBetween(sensorData.getOdometer.getA,
+          sensorData.getOdometer.getB,
+          lastState.x,
+          lastState.y)
+        val degree = toDegree(radians).toInt
 
         state = State(sensorData.getOdometer.getA,
           sensorData.getOdometer.getB,
@@ -130,6 +133,9 @@ abstract class RobotController(parent: ActorRef)
           sensorData.getVelocity.getA,
           sensorData.getVelocity.getB,
           degree)
+        state.setHeading = lastState.setHeading
+        state.lastSetHeading = lastState.lastSetHeading
+        state.executionCount = lastState.executionCount
 
 
         val aX = state.accelX
@@ -146,6 +152,7 @@ abstract class RobotController(parent: ActorRef)
         accelLog.info(s"$aX,$aY,$aZ")
 
         locationLog.info(s"$x,$y,$xVel,$yVel")
+
       }
     }
 
@@ -174,7 +181,6 @@ abstract class RobotController(parent: ActorRef)
   }
 
 
-
   def stopStream(robot: Robot): Unit = {
     val command = new SetDataStreamingCommand(4, 1, SetDataStreamingCommand.DATA_STREAMING_MASKS.OFF, 1, 0)
     robot.sendCommand(command)
@@ -194,12 +200,10 @@ abstract class RobotController(parent: ActorRef)
     context.system.scheduler.scheduleOnce(100 millis, self, DeferredOp(robot, r => changeDirection(r, copySt, true)))
   }
 
-  def showConnected(robot:Robot):Unit = {
+  def showConnected(robot: Robot): Unit = {
     robot.rgbTransition(255, 0, 0, 0, 255, 255, 50)
     robot.sendCommand(new FrontLEDCommand(1))
   }
-
-
 
 
 }

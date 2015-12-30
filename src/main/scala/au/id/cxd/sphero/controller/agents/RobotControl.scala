@@ -215,6 +215,32 @@ trait RobotControl {
   def toRadian(degree: Double) = degree * (Math.PI / 180.0)
 
   /**
+    * calculate the angle between two cartesian coordinates
+    *
+    * len = \sqrt{a^2 + b^2}
+    *
+    * dot = |A||B|\cos\theta
+    *
+    * \cos\theta = \frac{1}{|A||B|}
+    *
+    * \theta = \acos {\frac{1}{|A||B|}}
+    *
+    * @param x1
+    * @param y1
+    * @param x2
+    * @param y2
+    * @return
+    */
+  def radiansBetween(x1:Int, y1:Int, x2:Int, y2:Int):Double = {
+    val len1 = Math.sqrt(Math.pow(x1,2) + Math.pow(y1,2))
+    val len2 = Math.sqrt(Math.pow(x2,2) + Math.pow(y2,2))
+    val dot = x1*x2 + y1*y2
+    val cosTheta = dot / (len1*len2)
+    Math.acos(cosTheta)
+  }
+
+
+  /**
     * convert x and y to polar coordinates
     *
     * we navigate on the x y plane

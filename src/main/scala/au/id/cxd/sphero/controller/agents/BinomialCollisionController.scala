@@ -60,6 +60,12 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
     */
   var currentY: DenseVector[Double] = DenseVector.zeros[Double](360)
 
+  /**
+    * last selected heading
+    *
+    */
+  var lastHeading: Int = 0
+
   override def receive = {
 
     case Update(robot) => {
@@ -77,116 +83,150 @@ class BinomialCollisionController(parent: ActorRef) extends RobotController(pare
     * @param state
     */
   def changeDirection(robot: Robot, state: State, wasCollision: Boolean): Unit = {
-
-    val heading = wasCollision match {
+    val (heading, flag) = wasCollision match {
       case true => {
-        updateCollision(state, collisionLikelihood)
-        selectLeastLikelihood(collisionLikelihood)
+        updateCollision(state.lastSetHeading, collisionLikelihood)
+        (selectLeastLikelihood(collisionLikelihood)(0, 359), wasCollision)
       }
-      case _ => state.heading
+      case _ => {
+        val distance2d = state.distance(lastState)
+        distance2d < minDistanceThreshold match {
+          case true => {
+            // determine if we have moved much from the previous state
+            // we expect a step that is at least a magnitude of velocity along the heading
+            println(s"Distance: $distance2d cm")
+            updateCollision(state.lastSetHeading, collisionLikelihood)
+
+            // use the current heading and select a minimum and maximum index 90 degrees
+            // in the opposite direction of the current heading
+            val theta = toRadian(state.lastSetHeading)
+            val (min, max) = {
+              val minDegree = toDegree(theta - 130 * (Math.PI / 180.0)).toInt
+              val maxDegree = toDegree(theta + 130 * (Math.PI / 180.0)).toInt
+              minDegree < maxDegree match {
+                case true => (minDegree, maxDegree)
+                case _ => (maxDegree, minDegree)
+              }
+            }
+            (selectLeastLikelihood(collisionLikelihood)(min, max), true)
+          }
+          case false => (state.lastSetHeading, false)
+        }
+      }
     }
 
-    // determine if we have moved much from the previous state
-    // we expect a step that is at least a magnitude of velocity along the heading
-    val distance2d = state.distance(lastState)
-    println(s"Distance: $distance2d cm")
-
-    // check the threshold
-    val heading2 = distance2d < minDistanceThreshold match {
+    state.setHeading = heading < 0 match {
       case true => {
-        updateCollision(state, collisionLikelihood)
-        randomHeading(robot, state, lastState, wasCollision)
+        val tmp = Math.abs(heading)
+        360 - tmp
       }
       case false => heading
     }
 
-    val finalHeading = heading2 < 0 match {
+    val h = state.setHeading
+
+    println(s"Final Heading: $h")
+    flag match {
       case true => {
-        val tmp = Math.abs(heading2)
-        360 - tmp
+        // rotate to the heading before rolling
+        // rotate first
+        // execute the roll command 3 times.
+        val command1 = new RollCommand(state.setHeading.toFloat, 1.0f, true)
+        robot.sendCommand(command1)
+
       }
-      case false => heading2
+      case false => {}
     }
 
-
-    println(s"Final Heading: $finalHeading")
-    val command = new RollCommand(finalHeading.toFloat, constSpeed, false)
+    val command = new RollCommand(state.setHeading.toFloat, constSpeed, false)
     robot.sendCommand(command)
+
+    state.lastSetHeading = state.setHeading
   }
 
 
-  /**
-    * update the collision likelihood for the given state.
-    * this is based only on the polar degree
-    *
-    * this is used to update the parameter vector for proportion
-    * and the alpha and beta parameters for the degree heading
-    *
-    * @param state
-    * @param likelihood
-    */
-  def updateCollision(state: State, likelihood: DenseVector[Double]) = {
-    val polar = toPolar(state)
-    val tmp = toDegree(polar._2).toInt
 
-    val degree = tmp < 0 match {
-      case false => tmp
-      case true => {
-        val tmp1 = Math.abs(tmp)
-        360 - tmp1
-      }
-    }
+/**
+  * update the collision likelihood for the given state.
+  * this is based only on the polar degree
+  *
+  * this is used to update the parameter vector for proportion
+  * and the alpha and beta parameters for the degree heading
+  *
+  * @param likelihood
+  */
+def updateCollision (degree: Int, likelihood: DenseVector[Double] ) = {
 
-    val n = currentN.apply(degree)
-    val y = currentY.apply(degree)
-    if (n < slidingWindow) {
-      currentN(degree) = n + 1
-      currentY(degree) = y + 1
-    } else {
-      currentN(degree) = 1
-      currentY(degree) = 1
-    }
+for (i <- 0 until likelihood.length) {
 
-    // we want to update g(pi|y) using alpha and beta
-    // we use the update rules for the beta binomial
-    // alpha = alpha + y
-    // beta = beta + n - y
-    // g(pi|a,b) \propto \pi ^ {\alpha + y - 1} (1 - \pi) ^ {\beta + n - y - 1}
-    // for 0 \leq \pi \leq 1
-    // the normalising constant for g(\pi|y) is
-    // \frac{\Gamma(n + \alpha + \beta)} {\Gamma(y + \alpha)\Gamma(n - y + \beta)}
+val (n, y) = {
+val n = currentN.apply (i)
+val y = currentY.apply (i)
+i == degree match {
+case true => {
+if (n < slidingWindow) {
+currentN (degree) = n + 1
+currentY (degree) = y + 1
+} else {
+currentN (degree) = 1
+currentY (degree) = 1
+}
+}
+case false => {
+if (n < slidingWindow) {
+currentN (i) = n + 1
+if (y > 0) {
+currentY (i) = y - 1
+}
+} else {
+currentN (i) = 1
+currentY (i) = 0
+}
+}
 
-    // update the beta distribution parameters
-    alphaParameters(degree) = alphaParameters(degree) + y
-    betaParameters(degree) = betaParameters(degree) + n - y
+}
 
-    // compute most mean value for pi based on the beta parameters
-    val pi = alphaParameters(degree) / (alphaParameters(degree) + betaParameters(degree))
-    proportion(degree) = pi
-    // calculate the likelihood of f(y|pi) using the updated parameter pi
-    val binom = Binomial(slidingWindow.toDouble)(pi)
-    likelihood(degree) = binom.pdf(1)
-    likelihood
-  }
+(currentN.apply (i), currentY.apply (i) )
+}
+// update the beta distribution parameters
+alphaParameters (i) = alphaParameters (i) + y
+betaParameters (i) = betaParameters (i) + n - y
 
-  /**
-    * select the angle (based on index) of the least likelihood of collision
-    * @param likelihood
-    * @return
-    */
-  def selectLeastLikelihood(likelihood: DenseVector[Double]) = {
-    def select(idx: Int, matchIdx: Int, least: Double)(likelihood: DenseVector[Double]): (Int, Int, Double) = {
-      idx < likelihood.length match {
-        case true => least > likelihood(idx) match {
-          case true => select(idx + 1, idx, likelihood(idx))(likelihood)
-          case false => select(idx+1, matchIdx, least)(likelihood)
-        }
-        case _ => (idx, matchIdx, least)
-      }
-    }
-    val (idx, matchIdx, least) = select(0, 0, Double.MaxValue)(likelihood)
-    matchIdx
-  }
+// compute most mean value for pi based on the beta parameters
+val pi = alphaParameters (i) / (alphaParameters (i) + betaParameters (i) )
+proportion (i) = pi
+// calculate the likelihood of f(y|pi) using the updated parameter pi
+val binom = Binomial (slidingWindow.toDouble) (pi)
+likelihood (i) = binom.pdf (1)
+}
+likelihood
+}
+
+/**
+  * select the angle (based on index) of the least likelihood of collision
+  * step 3 degrees at each search
+  * @param likelihood
+  * @return
+  */
+def selectLeastLikelihood (likelihood: DenseVector[Double] ) (min: Int, max: Int) = {
+def select (idx: Int, maxIdx: Int, matchIdx: Int, least: Double) (likelihood: DenseVector[Double] ): (Int, Int, Double) = {
+idx < likelihood.length match {
+case true => {
+idx >= min && idx <= maxIdx match {
+case true => least > likelihood (idx) match {
+case true => select (idx + 3, maxIdx, idx, likelihood (idx) ) (likelihood)
+case false => select (idx + 3, maxIdx, matchIdx, least) (likelihood)
+}
+case _ => (idx, matchIdx, least)
+}
+
+}
+case _ => (idx, matchIdx, least)
+}
+}
+val (idx, matchIdx, least) = select (min, max, 0, Double.MaxValue) (likelihood)
+matchIdx
+}
 
 }
 

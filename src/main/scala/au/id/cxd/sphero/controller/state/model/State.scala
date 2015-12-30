@@ -7,6 +7,12 @@ package au.id.cxd.sphero.controller.state.model
  */
 class State(val x:Int, val y:Int, val accelX:Int, val accelY:Int, val accelZ:Int, val speedX:Int, val speedY:Int, val heading:Int) {
 
+  var setHeading:Int = 0
+
+  var lastSetHeading:Int = 0
+
+  var executionCount:Int = 0
+
 
   /**
     * distance between x, y and z
@@ -21,5 +27,9 @@ object State {
   def apply(x:Int, y:Int, aX:Int, aY:Int, aZ:Int, speedX:Int, speedY:Int, heading:Int) =
     new State(x,y,aX, aY, aZ,speedX,speedY, heading);
 
-  def copy(st:State) = new State(st.x, st.y, st.accelX, st.accelY, st.accelZ, st.speedX, st.speedY, st.heading)
+  def copy(st:State) = new State(st.x, st.y, st.accelX, st.accelY, st.accelZ, st.speedX, st.speedY, st.heading) {
+    setHeading = st.setHeading
+    lastSetHeading = st.lastSetHeading
+    executionCount = st.executionCount
+  }
 }
