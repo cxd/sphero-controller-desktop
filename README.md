@@ -21,3 +21,4 @@ detection.
 
 Further details are explained in the [__summary documentation__](docs/random_and_binom_notes.ipynb).
 
+The following video illustrates the behaviour of the random controller as opposed to the binomial collision controller [__Sphero Controller Experiment__](https://www.youtube.com/watch?v=1vG26IipALs).
